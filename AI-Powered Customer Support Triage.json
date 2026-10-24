@@ -1,0 +1,278 @@
+{
+  "name": "AI-Powered Customer Support Triage",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-support-ticket",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -432,
+        -80
+      ],
+      "id": "01ae2ed7-d5fe-46b9-a804-3196e0155aba",
+      "name": "Webhook",
+      "webhookId": "b9613601-c980-40c8-9f77-14b88a8b4244"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "db01d17f-8b41-4890-8785-7aad844e1d1b",
+              "leftValue": "={{ $json.body.message }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -272,
+        -80
+      ],
+      "id": "8a629893-5c95-4938-99f8-c08fed1bfea4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "You are a helpful assistantYou are a customer support ticket triage assistant.\n\nAnalyze the customer's message and classify:\n1. Sentiment: Positive, Neutral, or Negative.\n2. Urgency: High, Medium, or Low.\n3. Priority: High, Medium, or Low.\n4. Reason: A short explanation for the classification.\n\nRules:\n- High urgency: payment problems involving money deducted, suspected fraud, account lockouts, major service outages, or severe customer impact.\n- Medium urgency: unresolved order issues, delayed deliveries, or problems affecting normal use.\n- Low urgency: general questions, suggestions, or minor issues.\n- Negative sentiment does not automatically mean high urgency.\n- Use only information present in the message. Do not invent facts.\n\nReturn only valid JSON in this format:\n{\n  \"sentiment\": \"Negative\",\n  \"urgency\": \"High\",\n  \"priority\": \"High\",\n  \"reason\": \"Payment deducted but order not confirmed\"\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -80,
+        -96
+      ],
+      "id": "db5da867-809c-4d93-bf4a-0d3284868072",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openrouter/free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        80
+      ],
+      "id": "e96cdb20-1028-4b9b-ad55-45eb249a70c3",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "mTCl8OltY9uQMbqe",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd712350-537f-47b6-9745-cf9709f61e62",
+              "name": "sentiment",
+              "value": "={{ JSON.parse($json.output).sentiment }}",
+              "type": "string"
+            },
+            {
+              "id": "94a6f108-03de-4f7c-9df7-a21cffec5fac",
+              "name": "urgency",
+              "value": "={{ JSON.parse($json.output).urgency }}",
+              "type": "string"
+            },
+            {
+              "id": "e6e1d6ae-d853-45eb-b00f-0e263cfcdd2f",
+              "name": "priority",
+              "value": "={{ JSON.parse($json.output).priority }}",
+              "type": "string"
+            },
+            {
+              "id": "9eacfb47-afa9-4da9-9aca-783d28de264a",
+              "name": "reason",
+              "value": "={{ JSON.parse($json.output).reason }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        176,
+        -96
+      ],
+      "id": "0b2a0a4b-531d-4a35-89d9-9bf2cd7a979c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ea8bff86-332a-4a62-ac0d-9111c9369356",
+              "leftValue": "={{ $json.priority }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        304,
+        -96
+      ],
+      "id": "8f97dd25-048f-4870-a0fc-592128307df2",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0CBW7L6R7T",
+          "mode": "list",
+          "cachedResultName": "urgent-support-tickets"
+        },
+        "text": "=🚨 HIGH-PRIORITY CUSTOMER TICKET  Sentiment: {{ $('Edit Fields').item.json.sentiment }} Urgency: {{ $('Edit Fields').item.json.urgency }} Priority: {{ $('Edit Fields').item.json.priority }} Reason: {{ $('Edit Fields').item.json.reason }}  Action required: Please review this customer complaint as soon as possible.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        480,
+        -112
+      ],
+      "id": "de15721b-b3b0-4acc-836f-ffa03b263b8e",
+      "name": "Send a message",
+      "webhookId": "d4a60889-6a2e-48ee-9050-901dc756e36d",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "cXlWp34xqBbNvUik",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "31e9b471-6f1a-4308-9ded-5a2c10d1a3ba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c8e44252fbe6b951dba9db1232ca8f02ea9aaced2f5a323dd38fee7ece6d30ef"
+  },
+  "nodeGroups": [],
+  "id": "oARPmj4XJw8FnTKY",
+  "tags": []
+}
